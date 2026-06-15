@@ -47,16 +47,16 @@ python file_rename.py
 
 ## References
 
-[1] [https://aicompetence.org](https://aicompetence.org/best-local-llm-tools-ai-models-on-your-pc/)
-[2] [https://www.gocodeo.com](https://www.gocodeo.com/post/local-llms-empowering-privacy-and-speed-in-ai-language-processing)
-[3] [https://dev.to](https://dev.to/sina14/your-guide-to-local-llms-ollama-deployment-models-and-use-cases-2jng)
-[4] [https://medium.com](https://medium.com/@sandeepkrajkumar/privategpt-f01a1802e442)
-[5] https://collabnix.com
-[6] [https://medium.com](https://medium.com/@jancalve/supercharge-your-shell-using-local-ai-models-with-simple-commands-602c22bbe480)
-[7] [https://www.modemguides.com](https://www.modemguides.com/blogs/ai-infrastructure/local-llm-knowledge-base-obsidian-setup-guide)
-[8] [https://pub.towardsai.net](https://pub.towardsai.net/building-a-local-rag-application-for-document-discovery-e72aee7c0ab7)
-[9] [https://python.plainenglish.io](https://python.plainenglish.io/self-hosted-llms-a-developers-guide-3cdae818dda6)
-[10] [https://levelup.gitconnected.com](https://levelup.gitconnected.com/declutter-your-spending-with-local-ai-finance-insighter-049191711f9e)
-[11] [https://www.innogpt.de](https://www.innogpt.de/en/blog/alternative-to-chatgpt)
+[1] [https://aicompetence.org](https://aicompetence.org/best-local-llm-tools-ai-models-on-your-pc/)  
+[2] [https://www.gocodeo.com](https://www.gocodeo.com/post/local-llms-empowering-privacy-and-speed-in-ai-language-processing)  
+[3] [https://dev.to](https://dev.to/sina14/your-guide-to-local-llms-ollama-deployment-models-and-use-cases-2jng)  
+[4] [https://medium.com](https://medium.com/@sandeepkrajkumar/privategpt-f01a1802e442)  
+[5] https://collabnix.com  
+[6] [https://medium.com](https://medium.com/@jancalve/supercharge-your-shell-using-local-ai-models-with-simple-commands-602c22bbe480)  
+[7] [https://www.modemguides.com](https://www.modemguides.com/blogs/ai-infrastructure/local-llm-knowledge-base-obsidian-setup-guide)  
+[8] [https://pub.towardsai.net](https://pub.towardsai.net/building-a-local-rag-application-for-document-discovery-e72aee7c0ab7)  
+[9] [https://python.plainenglish.io](https://python.plainenglish.io/self-hosted-llms-a-developers-guide-3cdae818dda6)  
+[10] [https://levelup.gitconnected.com](https://levelup.gitconnected.com/declutter-your-spending-with-local-ai-finance-insighter-049191711f9e)  
+[11] [https://www.innogpt.de](https://www.innogpt.de/en/blog/alternative-to-chatgpt)  
 [12] [https://medium.com](https://medium.com/@pankaj_pandey/ultimate-guide-to-ocr-tools-for-document-processing-in-python-bebeb3011267)
 [13] [https://www.reddit.com](https://www.reddit.com/r/ProductivityApps/comments/1hp1caz/aipowered_app_to_automatically_rename_files/)
