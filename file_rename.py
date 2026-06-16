@@ -14,7 +14,7 @@ import re
 import sys
 from pathlib import Path
 
-import fitz  # PyMuPDF
+import pymupdf
 import ollama
 
 # ---------------------------------------------------------------------------
@@ -56,11 +56,16 @@ def sanitise_filename(name: str) -> str:
     name = Path(name).name
     # Replace Windows-illegal characters with a dash
     name = _ILLEGAL_CHARS_RE.sub("-", name)
-    # Collapse repeated dashes/spaces
-    name = re.sub(r"[-\s]{2,}", " ", name).strip(" -")
+    # Collapse repeated spaces and repeated dashes independently so " - " is preserved
+    name = re.sub(r" {2,}", " ", name)
+    name = re.sub(r"-{2,}", "-", name)
+    name = name.strip(" -")
     # Enforce length (keep the .pdf extension)
-    stem, _, ext = name.rpartition(".")
-    ext = f".{ext}" if ext else ".pdf"
+    stem, sep, ext = name.rpartition(".")
+    if sep:
+        ext = f".{ext}"
+    else:
+        stem, ext = name, ".pdf"
     if len(stem) > MAX_FILENAME_LEN:
         stem = stem[:MAX_FILENAME_LEN].rstrip(" -")
     return f"{stem}{ext}"
@@ -89,7 +94,7 @@ def extract_text_from_pdf(pdf_path: Path) -> str:
     """Return text from the first two pages of a PDF, or an empty string on failure."""
     text_parts: list[str] = []
     try:
-        with fitz.open(str(pdf_path)) as doc:
+        with pymupdf.open(pdf_path) as doc:
             for page in doc[:2]:
                 text_parts.append(page.get_text())
         log.debug("Extracted %d chars from '%s'", sum(len(t) for t in text_parts), pdf_path.name)
@@ -98,7 +103,7 @@ def extract_text_from_pdf(pdf_path: Path) -> str:
     return "".join(text_parts).strip()
 
 
-def get_new_filename(pdf_text: str, current_name: str) -> str | None:
+def get_new_filename(pdf_text: str, current_name: str, model: str = MODEL_NAME) -> str | None:
     """Ask the local LLM to suggest a structured filename."""
     if not pdf_text:
         log.debug("No text to send to LLM for '%s'", current_name)
@@ -117,9 +122,9 @@ def get_new_filename(pdf_text: str, current_name: str) -> str | None:
     )
 
     try:
-        log.debug("Sending %d chars to model '%s' for '%s'", len(prompt), MODEL_NAME, current_name)
-        response = ollama.generate(model=MODEL_NAME, prompt=prompt)
-        raw: str = response["response"].strip()
+        log.debug("Sending %d chars to model '%s' for '%s'", len(prompt), model, current_name)
+        response = ollama.generate(model=model, prompt=prompt)
+        raw: str = response.response.strip()
         log.debug("LLM raw response: %r", raw)
 
         # Strip accidental markdown / quotes
@@ -143,7 +148,7 @@ def get_new_filename(pdf_text: str, current_name: str) -> str | None:
 # Main batch loop
 # ---------------------------------------------------------------------------
 
-def batch_rename_pdfs(folder: Path, dry_run: bool = False) -> None:
+def batch_rename_pdfs(folder: Path, dry_run: bool = False, model: str = MODEL_NAME) -> None:
     if not folder.exists():
         log.error("Folder does not exist: %s", folder)
         sys.exit(1)
@@ -171,7 +176,7 @@ def batch_rename_pdfs(folder: Path, dry_run: bool = False) -> None:
             stats["skipped"] += 1
             continue
 
-        new_name = get_new_filename(pdf_text, pdf_path.name)
+        new_name = get_new_filename(pdf_text, pdf_path.name, model=model)
         if not new_name:
             log.warning("  -> Skipped (LLM could not determine a better name)")
             stats["skipped"] += 1
@@ -244,7 +249,4 @@ if __name__ == "__main__":
     args = parse_args()
     setup_logging(debug=args.debug, log_file=args.log_file)
 
-    # Allow CLI overrides of module-level config
-    MODEL_NAME = args.model
-
-    batch_rename_pdfs(folder=Path(args.folder), dry_run=args.dry_run)
+    batch_rename_pdfs(folder=Path(args.folder), dry_run=args.dry_run, model=args.model)
