@@ -96,7 +96,7 @@ def extract_text_from_pdf(pdf_path: Path) -> str:
     try:
         with pymupdf.open(pdf_path) as doc:
             for page in doc[:2]:
-                text_parts.append(page.get_text())
+                text_parts.append(page.get_text("text"))
         log.debug("Extracted %d chars from '%s'", sum(len(t) for t in text_parts), pdf_path.name)
     except Exception:
         log.exception("Failed to read PDF: %s", pdf_path)
@@ -124,7 +124,11 @@ def get_new_filename(pdf_text: str, current_name: str, model: str = MODEL_NAME) 
     try:
         log.debug("Sending %d chars to model '%s' for '%s'", len(prompt), model, current_name)
         response = ollama.generate(model=model, prompt=prompt)
-        raw: str = response.response.strip()
+        raw_response = response.response
+        if raw_response is None:
+            log.warning("LLM returned no response for '%s'", current_name)
+            return None
+        raw: str = raw_response.strip()
         log.debug("LLM raw response: %r", raw)
 
         # Strip accidental markdown / quotes
