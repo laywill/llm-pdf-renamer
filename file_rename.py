@@ -116,7 +116,12 @@ def get_new_filename(pdf_text: str, current_name: str, model: str = MODEL_NAME) 
         "Your response must ONLY be the filename in this exact format: "
         "YYYY-MM-DD - [Vendor or Sender Name] - [Document Type].pdf\n"
         "Do not include any introductory text, markdown, or explanations. Only output the filename.\n\n"
-        "Example: 2026-03-15 - Chase Bank - Monthly Statement.pdf\n\n"
+        "DATE HANDLING:\n"
+        "This document originates from the United Kingdom. All dates in the source text use "
+        "UK format: DD/MM/YYYY (day first, then month, then year). "
+        "For example, '03/06/2025' means the 3rd of June 2025, NOT March 6th. "
+        "Convert the document date to ISO format YYYY-MM-DD in the filename.\n\n"
+        "Example: 2026-03-15 - Barclays - Monthly Statement.pdf\n\n"
         "Document Text:\n"
         f"{pdf_text[:MAX_TEXT_CHARS]}"
     )
