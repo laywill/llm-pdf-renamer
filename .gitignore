@@ -1,3 +1,9 @@
+# Claude Code /planning-with-files aretefacts
+task_plan.md
+task_plan_*.md
+notes.md
+notes*.md
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
