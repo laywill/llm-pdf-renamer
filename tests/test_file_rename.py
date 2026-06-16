@@ -1,21 +1,47 @@
 """Tests for file_rename.py — covers unique_path, setup_logging,
-extract_text_from_pdf, get_new_filename, batch_rename_pdfs, parse_args."""
+extract_text_from_pdf, ocr_pdf_pages, get_new_filename, batch_rename_pdfs,
+parse_args."""
 
+import io
 import logging
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
+from PIL import Image
 
 from file_rename import (
+    OCR_MAX_PAGES,
     batch_rename_pdfs,
     extract_text_from_pdf,
     get_new_filename,
+    ocr_pdf_pages,
     parse_args,
     setup_logging,
     unique_path,
 )
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _make_blank_png(width: int = 10, height: int = 10) -> bytes:
+    """Return minimal valid PNG bytes (white image) for test pixmap mocks."""
+    buf = io.BytesIO()
+    Image.new("RGB", (width, height), color=(255, 255, 255)).save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _make_mock_paddle_result(texts: list[str]) -> list:
+    """Build a PaddleOCR 3.x-style result: list of OCRResult-like dicts.
+
+    PaddleOCR 3.x returns List[OCRResult] where OCRResult is a dict-like object
+    with at minimum a 'rec_texts' key containing a list of recognised strings.
+    """
+    return [{"rec_texts": texts, "rec_scores": [0.99] * len(texts)}]
 
 
 # ---------------------------------------------------------------------------
@@ -98,6 +124,132 @@ class TestExtractTextFromPdf:
             mock_open.return_value.__enter__.return_value = doc
             result = extract_text_from_pdf(tmp_path / "blank.pdf")
         assert result == ""
+
+
+# ---------------------------------------------------------------------------
+# ocr_pdf_pages
+# ---------------------------------------------------------------------------
+
+
+def _make_mock_ocr_doc(pages: int = 1) -> MagicMock:
+    """Build a mock PyMuPDF doc whose pages return blank PNG pixmaps.
+
+    Slice-aware: doc[:N] returns only the first N mock pages.
+    """
+    mock_pix = MagicMock()
+    mock_pix.tobytes.return_value = _make_blank_png()
+
+    mock_pages = []
+    for _ in range(pages):
+        mock_page = MagicMock()
+        mock_page.get_pixmap.return_value = mock_pix
+        mock_pages.append(mock_page)
+
+    doc = MagicMock()
+    doc.__getitem__ = MagicMock(side_effect=lambda s: mock_pages[s])
+    return doc
+
+
+class TestOcrPdfPages:
+    def _patch_ocr(self, result):
+        """Context manager that stubs PaddleOCR with *result*."""
+        mock_engine = MagicMock()
+        mock_engine.predict.return_value = result
+        return patch("file_rename._get_paddle_ocr", return_value=mock_engine)
+
+    def test_returns_text_from_single_page(self, tmp_path):
+        pdf = tmp_path / "scan.pdf"
+        pdf.touch()
+        doc = _make_mock_ocr_doc()
+        with self._patch_ocr(_make_mock_paddle_result(["Invoice", "Total 50.00"])), \
+             patch("pymupdf.open") as mock_open:
+            mock_open.return_value.__enter__.return_value = doc
+            result = ocr_pdf_pages(pdf)
+        assert "Invoice" in result and "Total 50.00" in result
+
+    def test_returns_empty_string_when_no_text_detected(self, tmp_path):
+        """An empty OCR result list (no detections at all) must return ''."""
+        pdf = tmp_path / "blank.pdf"
+        pdf.touch()
+        doc = _make_mock_ocr_doc()
+        with self._patch_ocr([]), \
+             patch("pymupdf.open") as mock_open:
+            mock_open.return_value.__enter__.return_value = doc
+            result = ocr_pdf_pages(pdf)
+        assert result == ""
+
+    def test_returns_empty_string_on_pymupdf_exception(self, tmp_path):
+        pdf = tmp_path / "bad.pdf"
+        pdf.touch()
+        mock_engine = MagicMock()
+        with patch("file_rename._get_paddle_ocr", return_value=mock_engine), \
+             patch("pymupdf.open", side_effect=Exception("corrupt pdf")):
+            result = ocr_pdf_pages(pdf)
+        assert result == ""
+
+    def test_returns_empty_string_on_ocr_engine_exception(self, tmp_path):
+        pdf = tmp_path / "scan.pdf"
+        pdf.touch()
+        doc = _make_mock_ocr_doc()
+        mock_engine = MagicMock()
+        mock_engine.predict.side_effect = Exception("OCR error")
+        with patch("file_rename._get_paddle_ocr", return_value=mock_engine), \
+             patch("pymupdf.open") as mock_open:
+            mock_open.return_value.__enter__.return_value = doc
+            result = ocr_pdf_pages(pdf)
+        assert result == ""
+
+    def test_respects_max_pages(self, tmp_path):
+        pdf = tmp_path / "scan.pdf"
+        pdf.touch()
+        doc = _make_mock_ocr_doc(pages=3)
+        mock_engine = MagicMock()
+        mock_engine.predict.return_value = _make_mock_paddle_result(["text"])
+        with patch("file_rename._get_paddle_ocr", return_value=mock_engine), \
+             patch("pymupdf.open") as mock_open:
+            mock_open.return_value.__enter__.return_value = doc
+            ocr_pdf_pages(pdf, max_pages=1)
+        # doc sliced to [:1] — the mock returns [mock_page]*3 but iterates only 1
+        assert mock_engine.predict.call_count == 1
+
+    def test_default_max_pages_matches_constant(self, tmp_path):
+        pdf = tmp_path / "scan.pdf"
+        pdf.touch()
+        doc = _make_mock_ocr_doc(pages=OCR_MAX_PAGES)
+        mock_engine = MagicMock()
+        mock_engine.predict.return_value = _make_mock_paddle_result(["text"])
+        with patch("file_rename._get_paddle_ocr", return_value=mock_engine), \
+             patch("pymupdf.open") as mock_open:
+            mock_open.return_value.__enter__.return_value = doc
+            ocr_pdf_pages(pdf)
+        assert mock_engine.predict.call_count == OCR_MAX_PAGES
+
+    def test_returns_empty_string_when_rec_texts_empty(self, tmp_path):
+        """An OCRResult with an empty rec_texts list must return ''."""
+        pdf = tmp_path / "blank.pdf"
+        pdf.touch()
+        doc = _make_mock_ocr_doc()
+        with self._patch_ocr([{"rec_texts": [], "rec_scores": []}]), \
+             patch("pymupdf.open") as mock_open:
+            mock_open.return_value.__enter__.return_value = doc
+            result = ocr_pdf_pages(pdf)
+        assert result == ""
+
+    def test_get_paddle_ocr_singleton(self):
+        """_get_paddle_ocr returns the same object on repeated calls."""
+        import file_rename
+        orig = file_rename._paddle_ocr
+        try:
+            file_rename._paddle_ocr = None
+            mock_cls = MagicMock(return_value=MagicMock())
+            with patch.dict("sys.modules", {"paddleocr": MagicMock(PaddleOCR=mock_cls)}):
+                # Force re-import inside _get_paddle_ocr
+                engine1 = file_rename._get_paddle_ocr()
+                engine2 = file_rename._get_paddle_ocr()
+            assert engine1 is engine2
+            assert mock_cls.call_count == 1
+        finally:
+            file_rename._paddle_ocr = orig
 
 
 # ---------------------------------------------------------------------------
@@ -185,10 +337,47 @@ class TestBatchRenamePdfs:
     def test_no_error_when_no_pdfs(self, tmp_path):
         batch_rename_pdfs(tmp_path)  # should return silently
 
+    def test_skips_pdf_when_no_text_and_ocr_also_empty(self, tmp_path):
+        pdf = tmp_path / "scan.pdf"
+        pdf.touch()
+        with patch("file_rename.extract_text_from_pdf", return_value=""), \
+             patch("file_rename.ocr_pdf_pages", return_value=""):
+            batch_rename_pdfs(tmp_path)
+        assert pdf.exists()
+
+    def test_renames_pdf_when_ocr_finds_text(self, tmp_path):
+        pdf = tmp_path / "scan.pdf"
+        pdf.touch()
+        new_name = "2024-06-01 - HMRC - Tax Return.pdf"
+        with patch("file_rename.extract_text_from_pdf", return_value=""), \
+             patch("file_rename.ocr_pdf_pages", return_value="some ocr text"), \
+             patch("file_rename.get_new_filename", return_value=new_name):
+            batch_rename_pdfs(tmp_path)
+        assert (tmp_path / new_name).exists()
+        assert not pdf.exists()
+
+    def test_ocr_called_only_when_extract_returns_empty(self, tmp_path):
+        pdf = tmp_path / "scan.pdf"
+        pdf.touch()
+        with patch("file_rename.extract_text_from_pdf", return_value="real text"), \
+             patch("file_rename.ocr_pdf_pages") as mock_ocr, \
+             patch("file_rename.get_new_filename", return_value="new.pdf"):
+            batch_rename_pdfs(tmp_path)
+        mock_ocr.assert_not_called()
+
+    def test_ocr_called_when_extract_returns_empty(self, tmp_path):
+        pdf = tmp_path / "scan.pdf"
+        pdf.touch()
+        with patch("file_rename.extract_text_from_pdf", return_value=""), \
+             patch("file_rename.ocr_pdf_pages", return_value="") as mock_ocr:
+            batch_rename_pdfs(tmp_path)
+        mock_ocr.assert_called_once()
+
     def test_skips_pdf_with_no_text(self, tmp_path):
         pdf = tmp_path / "scan.pdf"
         pdf.touch()
-        with patch("file_rename.extract_text_from_pdf", return_value=""):
+        with patch("file_rename.extract_text_from_pdf", return_value=""), \
+             patch("file_rename.ocr_pdf_pages", return_value=""):
             batch_rename_pdfs(tmp_path)
         assert pdf.exists()
 
@@ -287,3 +476,13 @@ class TestParseArgs:
         with patch("sys.argv", ["prog", "--log-file", log]):
             args = parse_args()
         assert args.log_file == log
+
+    def test_ocr_pages_default(self):
+        with patch("sys.argv", ["prog"]):
+            args = parse_args()
+        assert args.ocr_pages == OCR_MAX_PAGES
+
+    def test_ocr_pages_arg(self):
+        with patch("sys.argv", ["prog", "--ocr-pages", "5"]):
+            args = parse_args()
+        assert args.ocr_pages == 5

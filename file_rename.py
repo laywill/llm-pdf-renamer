@@ -9,21 +9,29 @@ Usage:
 """
 
 import argparse
+import contextlib
+import io
 import logging
+import os
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
+import numpy as np
 import pymupdf
 import ollama
+from PIL import Image
 
 # ---------------------------------------------------------------------------
 # CONFIGURATION — override with CLI flags where possible
 # ---------------------------------------------------------------------------
 FOLDER_PATH = r"C:\path\to\your\backed_up_pdfs"
-MODEL_NAME = "llama3.1"
+MODEL_NAME = "gemma3:4b"
 MAX_TEXT_CHARS = 2000   # chars sent to the LLM per document
 MAX_FILENAME_LEN = 200  # characters, well under the 255-byte FS limit
+OCR_MAX_PAGES = 2       # pages to OCR when no embedded text is found
+OCR_DPI = 200           # render resolution for OCR; 200 DPI balances speed and accuracy
 
 # Windows-illegal filename characters
 _ILLEGAL_CHARS_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
@@ -40,6 +48,44 @@ def setup_logging(debug: bool = False, log_file: str | None = None) -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
         handlers=handlers,
     )
+    if not debug:
+        # Silence httpx INFO logs ("HTTP Request: POST ...") emitted by the ollama client
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+
+
+@contextlib.contextmanager
+def _quiet_libs():
+    """Redirect stdout/stderr FDs to devnull to silence C-extension library chatter.
+
+    Flush Python buffers before restoring so any buffered output from the quiet
+    period drains to devnull rather than leaking to the terminal after exit.
+    """
+    sys.stdout.flush()
+    sys.stderr.flush()
+    devnull_fd = os.open(os.devnull, os.O_WRONLY)
+    saved: dict[int, int] = {}
+    try:
+        for fd in (1, 2):
+            saved[fd] = os.dup(fd)
+            os.dup2(devnull_fd, fd)
+        os.close(devnull_fd)
+        devnull_fd = -1
+        yield
+    finally:
+        if devnull_fd != -1:
+            os.close(devnull_fd)
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except Exception:
+            pass
+        for fd, orig in saved.items():
+            os.dup2(orig, fd)
+            os.close(orig)
+
+
+def _maybe_quiet() -> contextlib.AbstractContextManager:
+    return contextlib.nullcontext() if log.isEnabledFor(logging.DEBUG) else _quiet_libs()
 
 
 log = logging.getLogger(__name__)
@@ -96,11 +142,63 @@ def extract_text_from_pdf(pdf_path: Path) -> str:
     try:
         with pymupdf.open(pdf_path) as doc:
             for page in doc[:2]:
-                text_parts.append(page.get_text("text"))
+                text_parts.append(str(page.get_text("text")))
         log.debug("Extracted %d chars from '%s'", sum(len(t) for t in text_parts), pdf_path.name)
     except Exception:
         log.exception("Failed to read PDF: %s", pdf_path)
     return "".join(text_parts).strip()
+
+
+_paddle_ocr: Any = None
+
+
+def _get_paddle_ocr() -> Any:
+    """Lazy-initialize the PaddleOCR engine (models downloaded on first use, ~200 MB).
+
+    Uses the onnxruntime backend, which works on Python 3.9+ including 3.13+
+    where paddlepaddle has no wheels.
+    """
+    global _paddle_ocr
+    if _paddle_ocr is None:
+        from paddleocr import PaddleOCR  # type: ignore[import-untyped]  # noqa: PLC0415
+        import logging as _logging  # noqa: PLC0415
+        # paddlex/__init__.py calls setup_logging() on import, resetting its logger to INFO.
+        # Set to ERROR *after* the import so our level isn't overridden.
+        # Skip silencing in debug mode so the full paddlex output remains visible.
+        if not log.isEnabledFor(logging.DEBUG):
+            for _name in ("ppocr", "paddleocr", "paddlex", "paddle"):
+                _logging.getLogger(_name).setLevel(_logging.ERROR)
+        with _maybe_quiet():
+            _paddle_ocr = PaddleOCR(
+                use_textline_orientation=True,
+                lang="en",
+                engine="onnxruntime",
+            )
+    return _paddle_ocr
+
+
+def ocr_pdf_pages(pdf_path: Path, max_pages: int = OCR_MAX_PAGES) -> str:
+    """OCR the first *max_pages* pages of a PDF using PaddleOCR (onnxruntime backend).
+
+    Renders each page to a pixmap via PyMuPDF, converts it to a BGR numpy
+    array, and passes it to PaddleOCR.  Returns combined text or "" on any error.
+    Each OCRResult exposes rec_texts: list[str], one entry per detected text line.
+    """
+    log.debug("OCR-ing up to %d page(s) of '%s'", max_pages, pdf_path.name)
+    text_parts: list[str] = []
+    try:
+        engine = _get_paddle_ocr()
+        with pymupdf.open(pdf_path) as doc:
+            for page in doc[:max_pages]:
+                pix = page.get_pixmap(dpi=OCR_DPI)
+                img = Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGB")
+                img_array = np.array(img)[:, :, ::-1]  # RGB → BGR (PaddleOCR convention)
+                for ocr_result in engine.predict(img_array):
+                    text_parts.extend(ocr_result.get("rec_texts") or [])
+        log.debug("OCR extracted %d chars from '%s'", sum(len(t) for t in text_parts), pdf_path.name)
+    except Exception:
+        log.exception("OCR failed for '%s'", pdf_path.name)
+    return " ".join(text_parts).strip()
 
 
 def get_new_filename(pdf_text: str, current_name: str, model: str = MODEL_NAME) -> str | None:
@@ -157,7 +255,12 @@ def get_new_filename(pdf_text: str, current_name: str, model: str = MODEL_NAME) 
 # Main batch loop
 # ---------------------------------------------------------------------------
 
-def batch_rename_pdfs(folder: Path, dry_run: bool = False, model: str = MODEL_NAME) -> None:
+def batch_rename_pdfs(
+    folder: Path,
+    dry_run: bool = False,
+    model: str = MODEL_NAME,
+    ocr_pages: int = OCR_MAX_PAGES,
+) -> None:
     if not folder.exists():
         log.error("Folder does not exist: %s", folder)
         sys.exit(1)
@@ -181,7 +284,10 @@ def batch_rename_pdfs(folder: Path, dry_run: bool = False, model: str = MODEL_NA
 
         pdf_text = extract_text_from_pdf(pdf_path)
         if not pdf_text:
-            log.warning("  -> Skipped (no readable text found)")
+            log.info("  -> No embedded text found; attempting OCR…")
+            pdf_text = ocr_pdf_pages(pdf_path, max_pages=ocr_pages)
+        if not pdf_text:
+            log.warning("  -> Skipped (no readable text found and OCR produced nothing)")
             stats["skipped"] += 1
             continue
 
@@ -251,6 +357,13 @@ def parse_args() -> argparse.Namespace:
         metavar="PATH",
         help="Optional path to write log output to a file",
     )
+    parser.add_argument(
+        "--ocr-pages",
+        type=int,
+        default=OCR_MAX_PAGES,
+        metavar="N",
+        help="Number of pages to OCR when no embedded text is found (default: %(default)s)",
+    )
     return parser.parse_args()
 
 
@@ -258,4 +371,9 @@ if __name__ == "__main__":
     args = parse_args()
     setup_logging(debug=args.debug, log_file=args.log_file)
 
-    batch_rename_pdfs(folder=Path(args.folder), dry_run=args.dry_run, model=args.model)
+    batch_rename_pdfs(
+        folder=Path(args.folder),
+        dry_run=args.dry_run,
+        model=args.model,
+        ocr_pages=args.ocr_pages,
+    )
