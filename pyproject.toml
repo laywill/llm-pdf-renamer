@@ -1,0 +1,54 @@
+[project]
+name = "llm-pdf-renamer"
+description = "A tool to rename PDFs based on their content using a local LLM."
+readme = "README.md"
+requires-python = ">=3.9"
+license-files = ["LICENSE"]
+dynamic = ["version"]
+authors = [
+  {name = "Will Lay", email = "laywill@gmail.com"},
+]
+maintainers = [
+  {name = "Will Lay", email = "laywill@gmail.com"}
+]
+classifiers = [
+    # How mature is this project? Common values are
+    #   3 - Alpha
+    #   4 - Beta
+    #   5 - Production/Stable
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "ollama>=0.3.0",
+    "PyMuPDF>=1.24.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit>=4.2.0",
+]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.1.0",
+]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+pythonpath = ["."]
+addopts = "--cov=file_rename --cov-report=term-missing"
+
+[tool.coverage.report]
+exclude_lines = [
+    "if __name__ == .__main__.:",
+]
+fail_under = 90
