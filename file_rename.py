@@ -164,8 +164,10 @@ def _get_paddle_ocr() -> Any:
         import logging as _logging  # noqa: PLC0415
         # paddlex/__init__.py calls setup_logging() on import, resetting its logger to INFO.
         # Set to ERROR *after* the import so our level isn't overridden.
-        for _name in ("ppocr", "paddleocr", "paddlex", "paddle"):
-            _logging.getLogger(_name).setLevel(_logging.ERROR)
+        # Skip silencing in debug mode so the full paddlex output remains visible.
+        if not log.isEnabledFor(logging.DEBUG):
+            for _name in ("ppocr", "paddleocr", "paddlex", "paddle"):
+                _logging.getLogger(_name).setLevel(_logging.ERROR)
         with _maybe_quiet():
             _paddle_ocr = PaddleOCR(
                 use_textline_orientation=True,
