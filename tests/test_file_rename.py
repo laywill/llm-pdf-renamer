@@ -36,8 +36,12 @@ def _make_blank_png(width: int = 10, height: int = 10) -> bytes:
 
 
 def _make_mock_paddle_result(texts: list[str]) -> list:
-    """Build a PaddleOCR-style result list from a list of text strings."""
-    return [[[None, (t, 0.99)] for t in texts]] if texts else [[]]
+    """Build a PaddleOCR 3.x-style result: list of OCRResult-like dicts.
+
+    PaddleOCR 3.x returns List[OCRResult] where OCRResult is a dict-like object
+    with at minimum a 'rec_texts' key containing a list of recognised strings.
+    """
+    return [{"rec_texts": texts, "rec_scores": [0.99] * len(texts)}]
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +154,7 @@ class TestOcrPdfPages:
     def _patch_ocr(self, result):
         """Context manager that stubs PaddleOCR with *result*."""
         mock_engine = MagicMock()
-        mock_engine.ocr.return_value = result
+        mock_engine.predict.return_value = result
         return patch("file_rename._get_paddle_ocr", return_value=mock_engine)
 
     def test_returns_text_from_single_page(self, tmp_path):
@@ -164,10 +168,11 @@ class TestOcrPdfPages:
         assert "Invoice" in result and "Total 50.00" in result
 
     def test_returns_empty_string_when_no_text_detected(self, tmp_path):
+        """An empty OCR result list (no detections at all) must return ''."""
         pdf = tmp_path / "blank.pdf"
         pdf.touch()
         doc = _make_mock_ocr_doc()
-        with self._patch_ocr([None]), \
+        with self._patch_ocr([]), \
              patch("pymupdf.open") as mock_open:
             mock_open.return_value.__enter__.return_value = doc
             result = ocr_pdf_pages(pdf)
@@ -187,7 +192,7 @@ class TestOcrPdfPages:
         pdf.touch()
         doc = _make_mock_ocr_doc()
         mock_engine = MagicMock()
-        mock_engine.ocr.side_effect = Exception("OCR error")
+        mock_engine.predict.side_effect = Exception("OCR error")
         with patch("file_rename._get_paddle_ocr", return_value=mock_engine), \
              patch("pymupdf.open") as mock_open:
             mock_open.return_value.__enter__.return_value = doc
@@ -199,37 +204,36 @@ class TestOcrPdfPages:
         pdf.touch()
         doc = _make_mock_ocr_doc(pages=3)
         mock_engine = MagicMock()
-        mock_engine.ocr.return_value = _make_mock_paddle_result(["text"])
+        mock_engine.predict.return_value = _make_mock_paddle_result(["text"])
         with patch("file_rename._get_paddle_ocr", return_value=mock_engine), \
              patch("pymupdf.open") as mock_open:
             mock_open.return_value.__enter__.return_value = doc
             ocr_pdf_pages(pdf, max_pages=1)
         # doc sliced to [:1] — the mock returns [mock_page]*3 but iterates only 1
-        assert mock_engine.ocr.call_count == 1
+        assert mock_engine.predict.call_count == 1
 
     def test_default_max_pages_matches_constant(self, tmp_path):
         pdf = tmp_path / "scan.pdf"
         pdf.touch()
         doc = _make_mock_ocr_doc(pages=OCR_MAX_PAGES)
         mock_engine = MagicMock()
-        mock_engine.ocr.return_value = _make_mock_paddle_result(["text"])
+        mock_engine.predict.return_value = _make_mock_paddle_result(["text"])
         with patch("file_rename._get_paddle_ocr", return_value=mock_engine), \
              patch("pymupdf.open") as mock_open:
             mock_open.return_value.__enter__.return_value = doc
             ocr_pdf_pages(pdf)
-        assert mock_engine.ocr.call_count == OCR_MAX_PAGES
+        assert mock_engine.predict.call_count == OCR_MAX_PAGES
 
-    def test_skips_none_page_results(self, tmp_path):
-        """A None entry in the PaddleOCR result list must not raise."""
-        pdf = tmp_path / "scan.pdf"
+    def test_returns_empty_string_when_rec_texts_empty(self, tmp_path):
+        """An OCRResult with an empty rec_texts list must return ''."""
+        pdf = tmp_path / "blank.pdf"
         pdf.touch()
         doc = _make_mock_ocr_doc()
-        with self._patch_ocr([[None, ("text", 0.9)], None]), \
+        with self._patch_ocr([{"rec_texts": [], "rec_scores": []}]), \
              patch("pymupdf.open") as mock_open:
             mock_open.return_value.__enter__.return_value = doc
             result = ocr_pdf_pages(pdf)
-        # Should not raise; content from the valid entry should be present
-        assert isinstance(result, str)
+        assert result == ""
 
     def test_get_paddle_ocr_singleton(self):
         """_get_paddle_ocr returns the same object on repeated calls."""

@@ -15,7 +15,11 @@ For GPU acceleration, a CUDA-capable GPU with ≥ 6 GB VRAM will significantly s
 
 ## Prerequisites
 
-- Python 3.10+
+- **Python 3.9+** — Python 3.13 and 3.14 are fully supported via the `onnxruntime` backend.
+  > **Important:** Do **not** install `paddlepaddle` or `paddlepaddle-gpu`. PaddleOCR 3.x uses
+  > `onnxruntime` as its inference backend in this project. `paddlepaddle` has no wheels for
+  > Python 3.13+ and would cause import errors.
+
 - [Ollama](https://ollama.com) running locally with your chosen model pulled, e.g.:
 
   ```shell
@@ -57,7 +61,9 @@ pip install -r requirements.txt
 pip install -r requirements-dev.txt
 ```
 
-> **Note:** `paddleocr` downloads its recognition models (~50 MB) on first use. Ensure you have an internet connection the first time you process a scanned PDF.
+> **Note:** PaddleOCR 3.x downloads ONNX model files (~200 MB total across 5 models) to
+> `~/.paddlex/official_models/` on first use. Ensure you have an internet connection the first
+> time you process a scanned PDF. Subsequent runs use the cached models and start faster.
 
 ## Usage
 

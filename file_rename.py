@@ -113,20 +113,31 @@ _paddle_ocr: Any = None
 
 
 def _get_paddle_ocr() -> Any:
-    """Lazy-initialize the PaddleOCR engine (models downloaded on first use, ~50 MB)."""
+    """Lazy-initialize the PaddleOCR engine (models downloaded on first use, ~200 MB).
+
+    Uses the onnxruntime backend, which works on Python 3.9+ including 3.13+
+    where paddlepaddle has no wheels.
+    """
     global _paddle_ocr
     if _paddle_ocr is None:
+        import logging as _logging  # noqa: PLC0415
+        for _name in ("ppocr", "paddleocr", "paddlex", "paddle"):
+            _logging.getLogger(_name).setLevel(_logging.ERROR)
         from paddleocr import PaddleOCR  # type: ignore[import-untyped]  # noqa: PLC0415
-        _paddle_ocr = PaddleOCR(use_angle_cls=True, lang="en", show_log=False)
+        _paddle_ocr = PaddleOCR(
+            use_textline_orientation=True,
+            lang="en",
+            engine="onnxruntime",
+        )
     return _paddle_ocr
 
 
 def ocr_pdf_pages(pdf_path: Path, max_pages: int = OCR_MAX_PAGES) -> str:
-    """OCR the first *max_pages* pages of a PDF using PaddleOCR.
+    """OCR the first *max_pages* pages of a PDF using PaddleOCR (onnxruntime backend).
 
     Renders each page to a pixmap via PyMuPDF, converts it to a BGR numpy
-    array, and passes it to PaddleOCR (which handles skewed/rotated text via
-    its built-in angle classifier).  Returns combined text or "" on any error.
+    array, and passes it to PaddleOCR.  Returns combined text or "" on any error.
+    Each OCRResult exposes rec_texts: list[str], one entry per detected text line.
     """
     text_parts: list[str] = []
     try:
@@ -136,14 +147,8 @@ def ocr_pdf_pages(pdf_path: Path, max_pages: int = OCR_MAX_PAGES) -> str:
                 pix = page.get_pixmap(dpi=OCR_DPI)
                 img = Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGB")
                 img_array = np.array(img)[:, :, ::-1]  # RGB → BGR (PaddleOCR convention)
-                result = engine.ocr(img_array, cls=True)
-                if result:
-                    for page_result in result:
-                        if page_result is None:
-                            continue
-                        for line in page_result:
-                            if line and len(line) >= 2 and isinstance(line[1], (list, tuple)):
-                                text_parts.append(str(line[1][0]))
+                for ocr_result in engine.predict(img_array):
+                    text_parts.extend(ocr_result.get("rec_texts") or [])
         log.debug("OCR extracted %d chars from '%s'", sum(len(t) for t in text_parts), pdf_path.name)
     except Exception:
         log.exception("OCR failed for '%s'", pdf_path.name)
