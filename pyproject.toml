@@ -28,7 +28,10 @@ classifiers = [
 ]
 dependencies = [
     "ollama>=0.3.0",
-    "PyMuPDF>=1.24.0"
+    "PyMuPDF>=1.24.0",
+    "Pillow>=10.0.0",
+    "numpy>=1.24.0",
+    "paddleocr>=2.7.0",
 ]
 
 [project.optional-dependencies]
@@ -51,4 +54,4 @@ addopts = "--cov=file_rename --cov-report=term-missing"
 exclude_lines = [
     "if __name__ == .__main__.:",
 ]
-fail_under = 90
+fail_under = 95

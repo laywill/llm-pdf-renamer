@@ -9,21 +9,27 @@ Usage:
 """
 
 import argparse
+import io
 import logging
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
+import numpy as np
 import pymupdf
 import ollama
+from PIL import Image
 
 # ---------------------------------------------------------------------------
 # CONFIGURATION — override with CLI flags where possible
 # ---------------------------------------------------------------------------
 FOLDER_PATH = r"C:\path\to\your\backed_up_pdfs"
-MODEL_NAME = "llama3.1"
+MODEL_NAME = "gemma3:4b"
 MAX_TEXT_CHARS = 2000   # chars sent to the LLM per document
 MAX_FILENAME_LEN = 200  # characters, well under the 255-byte FS limit
+OCR_MAX_PAGES = 2       # pages to OCR when no embedded text is found
+OCR_DPI = 200           # render resolution for OCR; 200 DPI balances speed and accuracy
 
 # Windows-illegal filename characters
 _ILLEGAL_CHARS_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
@@ -103,6 +109,47 @@ def extract_text_from_pdf(pdf_path: Path) -> str:
     return "".join(text_parts).strip()
 
 
+_paddle_ocr: Any = None
+
+
+def _get_paddle_ocr() -> Any:
+    """Lazy-initialize the PaddleOCR engine (models downloaded on first use, ~50 MB)."""
+    global _paddle_ocr
+    if _paddle_ocr is None:
+        from paddleocr import PaddleOCR  # type: ignore[import-untyped]  # noqa: PLC0415
+        _paddle_ocr = PaddleOCR(use_angle_cls=True, lang="en", show_log=False)
+    return _paddle_ocr
+
+
+def ocr_pdf_pages(pdf_path: Path, max_pages: int = OCR_MAX_PAGES) -> str:
+    """OCR the first *max_pages* pages of a PDF using PaddleOCR.
+
+    Renders each page to a pixmap via PyMuPDF, converts it to a BGR numpy
+    array, and passes it to PaddleOCR (which handles skewed/rotated text via
+    its built-in angle classifier).  Returns combined text or "" on any error.
+    """
+    text_parts: list[str] = []
+    try:
+        engine = _get_paddle_ocr()
+        with pymupdf.open(pdf_path) as doc:
+            for page in doc[:max_pages]:
+                pix = page.get_pixmap(dpi=OCR_DPI)
+                img = Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGB")
+                img_array = np.array(img)[:, :, ::-1]  # RGB → BGR (PaddleOCR convention)
+                result = engine.ocr(img_array, cls=True)
+                if result:
+                    for page_result in result:
+                        if page_result is None:
+                            continue
+                        for line in page_result:
+                            if line and len(line) >= 2 and isinstance(line[1], (list, tuple)):
+                                text_parts.append(str(line[1][0]))
+        log.debug("OCR extracted %d chars from '%s'", sum(len(t) for t in text_parts), pdf_path.name)
+    except Exception:
+        log.exception("OCR failed for '%s'", pdf_path.name)
+    return " ".join(text_parts).strip()
+
+
 def get_new_filename(pdf_text: str, current_name: str, model: str = MODEL_NAME) -> str | None:
     """Ask the local LLM to suggest a structured filename."""
     if not pdf_text:
@@ -157,7 +204,12 @@ def get_new_filename(pdf_text: str, current_name: str, model: str = MODEL_NAME) 
 # Main batch loop
 # ---------------------------------------------------------------------------
 
-def batch_rename_pdfs(folder: Path, dry_run: bool = False, model: str = MODEL_NAME) -> None:
+def batch_rename_pdfs(
+    folder: Path,
+    dry_run: bool = False,
+    model: str = MODEL_NAME,
+    ocr_pages: int = OCR_MAX_PAGES,
+) -> None:
     if not folder.exists():
         log.error("Folder does not exist: %s", folder)
         sys.exit(1)
@@ -181,7 +233,10 @@ def batch_rename_pdfs(folder: Path, dry_run: bool = False, model: str = MODEL_NA
 
         pdf_text = extract_text_from_pdf(pdf_path)
         if not pdf_text:
-            log.warning("  -> Skipped (no readable text found)")
+            log.info("  -> No embedded text found; attempting OCR…")
+            pdf_text = ocr_pdf_pages(pdf_path, max_pages=ocr_pages)
+        if not pdf_text:
+            log.warning("  -> Skipped (no readable text found and OCR produced nothing)")
             stats["skipped"] += 1
             continue
 
@@ -251,6 +306,13 @@ def parse_args() -> argparse.Namespace:
         metavar="PATH",
         help="Optional path to write log output to a file",
     )
+    parser.add_argument(
+        "--ocr-pages",
+        type=int,
+        default=OCR_MAX_PAGES,
+        metavar="N",
+        help="Number of pages to OCR when no embedded text is found (default: %(default)s)",
+    )
     return parser.parse_args()
 
 
@@ -258,4 +320,9 @@ if __name__ == "__main__":
     args = parse_args()
     setup_logging(debug=args.debug, log_file=args.log_file)
 
-    batch_rename_pdfs(folder=Path(args.folder), dry_run=args.dry_run, model=args.model)
+    batch_rename_pdfs(
+        folder=Path(args.folder),
+        dry_run=args.dry_run,
+        model=args.model,
+        ocr_pages=args.ocr_pages,
+    )
