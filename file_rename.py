@@ -184,6 +184,7 @@ def ocr_pdf_pages(pdf_path: Path, max_pages: int = OCR_MAX_PAGES) -> str:
     array, and passes it to PaddleOCR.  Returns combined text or "" on any error.
     Each OCRResult exposes rec_texts: list[str], one entry per detected text line.
     """
+    log.debug("OCR-ing up to %d page(s) of '%s'", max_pages, pdf_path.name)
     text_parts: list[str] = []
     try:
         engine = _get_paddle_ocr()
