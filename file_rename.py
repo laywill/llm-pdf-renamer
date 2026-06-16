@@ -9,8 +9,10 @@ Usage:
 """
 
 import argparse
+import contextlib
 import io
 import logging
+import os
 import re
 import sys
 from pathlib import Path
@@ -46,6 +48,44 @@ def setup_logging(debug: bool = False, log_file: str | None = None) -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
         handlers=handlers,
     )
+    if not debug:
+        # Silence httpx INFO logs ("HTTP Request: POST ...") emitted by the ollama client
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+
+
+@contextlib.contextmanager
+def _quiet_libs():
+    """Redirect stdout/stderr FDs to devnull to silence C-extension library chatter.
+
+    Flush Python buffers before restoring so any buffered output from the quiet
+    period drains to devnull rather than leaking to the terminal after exit.
+    """
+    sys.stdout.flush()
+    sys.stderr.flush()
+    devnull_fd = os.open(os.devnull, os.O_WRONLY)
+    saved: dict[int, int] = {}
+    try:
+        for fd in (1, 2):
+            saved[fd] = os.dup(fd)
+            os.dup2(devnull_fd, fd)
+        os.close(devnull_fd)
+        devnull_fd = -1
+        yield
+    finally:
+        if devnull_fd != -1:
+            os.close(devnull_fd)
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except Exception:
+            pass
+        for fd, orig in saved.items():
+            os.dup2(orig, fd)
+            os.close(orig)
+
+
+def _maybe_quiet() -> contextlib.AbstractContextManager:
+    return contextlib.nullcontext() if log.isEnabledFor(logging.DEBUG) else _quiet_libs()
 
 
 log = logging.getLogger(__name__)
@@ -120,15 +160,18 @@ def _get_paddle_ocr() -> Any:
     """
     global _paddle_ocr
     if _paddle_ocr is None:
+        from paddleocr import PaddleOCR  # type: ignore[import-untyped]  # noqa: PLC0415
         import logging as _logging  # noqa: PLC0415
+        # paddlex/__init__.py calls setup_logging() on import, resetting its logger to INFO.
+        # Set to ERROR *after* the import so our level isn't overridden.
         for _name in ("ppocr", "paddleocr", "paddlex", "paddle"):
             _logging.getLogger(_name).setLevel(_logging.ERROR)
-        from paddleocr import PaddleOCR  # type: ignore[import-untyped]  # noqa: PLC0415
-        _paddle_ocr = PaddleOCR(
-            use_textline_orientation=True,
-            lang="en",
-            engine="onnxruntime",
-        )
+        with _maybe_quiet():
+            _paddle_ocr = PaddleOCR(
+                use_textline_orientation=True,
+                lang="en",
+                engine="onnxruntime",
+            )
     return _paddle_ocr
 
 
