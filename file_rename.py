@@ -102,7 +102,7 @@ def extract_text_from_pdf(pdf_path: Path) -> str:
     try:
         with pymupdf.open(pdf_path) as doc:
             for page in doc[:2]:
-                text_parts.append(page.get_text("text"))
+                text_parts.append(str(page.get_text("text")))
         log.debug("Extracted %d chars from '%s'", sum(len(t) for t in text_parts), pdf_path.name)
     except Exception:
         log.exception("Failed to read PDF: %s", pdf_path)
