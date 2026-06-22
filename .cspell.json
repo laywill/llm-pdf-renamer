@@ -1,0 +1,33 @@
+{
+    "allowCompoundWords": true,
+    "dictionaries": [
+        "bash",
+        "companies",
+        "en_US",
+        "en-GB",
+        "filetypes",
+        "fonts",
+        "misc",
+        "powershell",
+        "python",
+        "softwareTerms"
+    ],
+    "flagWords": [
+        "hte"
+    ],
+    "language": "en-GB",
+    "version": "0.2",
+    "words": [
+        "devcontainers",
+        "isort",
+        "Linters",
+        "pylance",
+        "pypa",
+        "pyupgrade",
+        "Retriable",
+        "Retryable"
+    ],
+    "ignoreWords": [
+        "stefanzweifel"
+    ]
+}
