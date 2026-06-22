@@ -52,13 +52,13 @@ python -m venv .venv
 .venv\Scripts\activate      # Windows
 source .venv/bin/activate   # macOS / Linux
 
-pip install -r requirements.txt
+pip install -e .
 ```
 
-**Development (includes pytest):**
+**Development (includes pytest and pre-commit):**
 
 ```shell
-pip install -r requirements-dev.txt
+pip install -e ".[dev,test]"
 ```
 
 > **Note:** PaddleOCR 3.x downloads ONNX model files (~200 MB total across 5 models) to
