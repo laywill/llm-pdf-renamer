@@ -23,10 +23,10 @@ from file_rename import (
     unique_path,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_blank_png(width: int = 10, height: int = 10) -> bytes:
     """Return minimal valid PNG bytes (white image) for test pixmap mocks."""
@@ -161,8 +161,10 @@ class TestOcrPdfPages:
         pdf = tmp_path / "scan.pdf"
         pdf.touch()
         doc = _make_mock_ocr_doc()
-        with self._patch_ocr(_make_mock_paddle_result(["Invoice", "Total 50.00"])), \
-             patch("pymupdf.open") as mock_open:
+        with (
+            self._patch_ocr(_make_mock_paddle_result(["Invoice", "Total 50.00"])),
+            patch("pymupdf.open") as mock_open,
+        ):
             mock_open.return_value.__enter__.return_value = doc
             result = ocr_pdf_pages(pdf)
         assert "Invoice" in result and "Total 50.00" in result
@@ -172,8 +174,7 @@ class TestOcrPdfPages:
         pdf = tmp_path / "blank.pdf"
         pdf.touch()
         doc = _make_mock_ocr_doc()
-        with self._patch_ocr([]), \
-             patch("pymupdf.open") as mock_open:
+        with self._patch_ocr([]), patch("pymupdf.open") as mock_open:
             mock_open.return_value.__enter__.return_value = doc
             result = ocr_pdf_pages(pdf)
         assert result == ""
@@ -182,8 +183,10 @@ class TestOcrPdfPages:
         pdf = tmp_path / "bad.pdf"
         pdf.touch()
         mock_engine = MagicMock()
-        with patch("file_rename._get_paddle_ocr", return_value=mock_engine), \
-             patch("pymupdf.open", side_effect=Exception("corrupt pdf")):
+        with (
+            patch("file_rename._get_paddle_ocr", return_value=mock_engine),
+            patch("pymupdf.open", side_effect=Exception("corrupt pdf")),
+        ):
             result = ocr_pdf_pages(pdf)
         assert result == ""
 
@@ -193,8 +196,10 @@ class TestOcrPdfPages:
         doc = _make_mock_ocr_doc()
         mock_engine = MagicMock()
         mock_engine.predict.side_effect = Exception("OCR error")
-        with patch("file_rename._get_paddle_ocr", return_value=mock_engine), \
-             patch("pymupdf.open") as mock_open:
+        with (
+            patch("file_rename._get_paddle_ocr", return_value=mock_engine),
+            patch("pymupdf.open") as mock_open,
+        ):
             mock_open.return_value.__enter__.return_value = doc
             result = ocr_pdf_pages(pdf)
         assert result == ""
@@ -205,8 +210,10 @@ class TestOcrPdfPages:
         doc = _make_mock_ocr_doc(pages=3)
         mock_engine = MagicMock()
         mock_engine.predict.return_value = _make_mock_paddle_result(["text"])
-        with patch("file_rename._get_paddle_ocr", return_value=mock_engine), \
-             patch("pymupdf.open") as mock_open:
+        with (
+            patch("file_rename._get_paddle_ocr", return_value=mock_engine),
+            patch("pymupdf.open") as mock_open,
+        ):
             mock_open.return_value.__enter__.return_value = doc
             ocr_pdf_pages(pdf, max_pages=1)
         # doc sliced to [:1] — the mock returns [mock_page]*3 but iterates only 1
@@ -218,8 +225,10 @@ class TestOcrPdfPages:
         doc = _make_mock_ocr_doc(pages=OCR_MAX_PAGES)
         mock_engine = MagicMock()
         mock_engine.predict.return_value = _make_mock_paddle_result(["text"])
-        with patch("file_rename._get_paddle_ocr", return_value=mock_engine), \
-             patch("pymupdf.open") as mock_open:
+        with (
+            patch("file_rename._get_paddle_ocr", return_value=mock_engine),
+            patch("pymupdf.open") as mock_open,
+        ):
             mock_open.return_value.__enter__.return_value = doc
             ocr_pdf_pages(pdf)
         assert mock_engine.predict.call_count == OCR_MAX_PAGES
@@ -229,8 +238,10 @@ class TestOcrPdfPages:
         pdf = tmp_path / "blank.pdf"
         pdf.touch()
         doc = _make_mock_ocr_doc()
-        with self._patch_ocr([{"rec_texts": [], "rec_scores": []}]), \
-             patch("pymupdf.open") as mock_open:
+        with (
+            self._patch_ocr([{"rec_texts": [], "rec_scores": []}]),
+            patch("pymupdf.open") as mock_open,
+        ):
             mock_open.return_value.__enter__.return_value = doc
             result = ocr_pdf_pages(pdf)
         assert result == ""
@@ -238,11 +249,14 @@ class TestOcrPdfPages:
     def test_get_paddle_ocr_singleton(self):
         """_get_paddle_ocr returns the same object on repeated calls."""
         import file_rename
+
         orig = file_rename._paddle_ocr
         try:
             file_rename._paddle_ocr = None
             mock_cls = MagicMock(return_value=MagicMock())
-            with patch.dict("sys.modules", {"paddleocr": MagicMock(PaddleOCR=mock_cls)}):
+            with patch.dict(
+                "sys.modules", {"paddleocr": MagicMock(PaddleOCR=mock_cls)}
+            ):
                 # Force re-import inside _get_paddle_ocr
                 engine1 = file_rename._get_paddle_ocr()
                 engine2 = file_rename._get_paddle_ocr()
@@ -268,27 +282,39 @@ class TestGetNewFilename:
         assert get_new_filename("", "doc.pdf") is None
 
     def test_returns_sanitised_filename(self):
-        with patch("ollama.generate", return_value=_llm_response("2024-01-15 - Chase Bank - Statement.pdf")):
+        with patch(
+            "ollama.generate",
+            return_value=_llm_response("2024-01-15 - Chase Bank - Statement.pdf"),
+        ):
             result = get_new_filename("some text", "doc.pdf")
         assert result == "2024-01-15 - Chase Bank - Statement.pdf"
 
     def test_appends_pdf_extension_when_missing(self):
-        with patch("ollama.generate", return_value=_llm_response("2024-01-15 - Chase Bank - Statement")):
+        with patch(
+            "ollama.generate",
+            return_value=_llm_response("2024-01-15 - Chase Bank - Statement"),
+        ):
             result = get_new_filename("some text", "doc.pdf")
         assert result is not None and result.endswith(".pdf")
 
     def test_strips_markdown_backticks(self):
-        with patch("ollama.generate", return_value=_llm_response("`2024-01-15 - Invoice.pdf`")):
+        with patch(
+            "ollama.generate", return_value=_llm_response("`2024-01-15 - Invoice.pdf`")
+        ):
             result = get_new_filename("some text", "doc.pdf")
         assert result is not None and "`" not in result
 
     def test_strips_double_quotes(self):
-        with patch("ollama.generate", return_value=_llm_response('"2024-01-15 - Invoice.pdf"')):
+        with patch(
+            "ollama.generate", return_value=_llm_response('"2024-01-15 - Invoice.pdf"')
+        ):
             result = get_new_filename("some text", "doc.pdf")
         assert result is not None and '"' not in result
 
     def test_strips_single_quotes(self):
-        with patch("ollama.generate", return_value=_llm_response("'2024-01-15 - Invoice.pdf'")):
+        with patch(
+            "ollama.generate", return_value=_llm_response("'2024-01-15 - Invoice.pdf'")
+        ):
             result = get_new_filename("some text", "doc.pdf")
         assert result is not None and "'" not in result
 
@@ -314,6 +340,7 @@ class TestGetNewFilename:
             get_new_filename(long_text, "doc.pdf")
 
         from file_rename import MAX_TEXT_CHARS
+
         assert "x" * MAX_TEXT_CHARS in captured_prompt[0]
         assert "x" * (MAX_TEXT_CHARS + 1) not in captured_prompt[0]
 
@@ -340,8 +367,10 @@ class TestBatchRenamePdfs:
     def test_skips_pdf_when_no_text_and_ocr_also_empty(self, tmp_path):
         pdf = tmp_path / "scan.pdf"
         pdf.touch()
-        with patch("file_rename.extract_text_from_pdf", return_value=""), \
-             patch("file_rename.ocr_pdf_pages", return_value=""):
+        with (
+            patch("file_rename.extract_text_from_pdf", return_value=""),
+            patch("file_rename.ocr_pdf_pages", return_value=""),
+        ):
             batch_rename_pdfs(tmp_path)
         assert pdf.exists()
 
@@ -349,9 +378,11 @@ class TestBatchRenamePdfs:
         pdf = tmp_path / "scan.pdf"
         pdf.touch()
         new_name = "2024-06-01 - HMRC - Tax Return.pdf"
-        with patch("file_rename.extract_text_from_pdf", return_value=""), \
-             patch("file_rename.ocr_pdf_pages", return_value="some ocr text"), \
-             patch("file_rename.get_new_filename", return_value=new_name):
+        with (
+            patch("file_rename.extract_text_from_pdf", return_value=""),
+            patch("file_rename.ocr_pdf_pages", return_value="some ocr text"),
+            patch("file_rename.get_new_filename", return_value=new_name),
+        ):
             batch_rename_pdfs(tmp_path)
         assert (tmp_path / new_name).exists()
         assert not pdf.exists()
@@ -359,41 +390,51 @@ class TestBatchRenamePdfs:
     def test_ocr_called_only_when_extract_returns_empty(self, tmp_path):
         pdf = tmp_path / "scan.pdf"
         pdf.touch()
-        with patch("file_rename.extract_text_from_pdf", return_value="real text"), \
-             patch("file_rename.ocr_pdf_pages") as mock_ocr, \
-             patch("file_rename.get_new_filename", return_value="new.pdf"):
+        with (
+            patch("file_rename.extract_text_from_pdf", return_value="real text"),
+            patch("file_rename.ocr_pdf_pages") as mock_ocr,
+            patch("file_rename.get_new_filename", return_value="new.pdf"),
+        ):
             batch_rename_pdfs(tmp_path)
         mock_ocr.assert_not_called()
 
     def test_ocr_called_when_extract_returns_empty(self, tmp_path):
         pdf = tmp_path / "scan.pdf"
         pdf.touch()
-        with patch("file_rename.extract_text_from_pdf", return_value=""), \
-             patch("file_rename.ocr_pdf_pages", return_value="") as mock_ocr:
+        with (
+            patch("file_rename.extract_text_from_pdf", return_value=""),
+            patch("file_rename.ocr_pdf_pages", return_value="") as mock_ocr,
+        ):
             batch_rename_pdfs(tmp_path)
         mock_ocr.assert_called_once()
 
     def test_skips_pdf_with_no_text(self, tmp_path):
         pdf = tmp_path / "scan.pdf"
         pdf.touch()
-        with patch("file_rename.extract_text_from_pdf", return_value=""), \
-             patch("file_rename.ocr_pdf_pages", return_value=""):
+        with (
+            patch("file_rename.extract_text_from_pdf", return_value=""),
+            patch("file_rename.ocr_pdf_pages", return_value=""),
+        ):
             batch_rename_pdfs(tmp_path)
         assert pdf.exists()
 
     def test_skips_pdf_when_llm_returns_none(self, tmp_path):
         pdf = tmp_path / "scan.pdf"
         pdf.touch()
-        with patch("file_rename.extract_text_from_pdf", return_value="text"), \
-             patch("file_rename.get_new_filename", return_value=None):
+        with (
+            patch("file_rename.extract_text_from_pdf", return_value="text"),
+            patch("file_rename.get_new_filename", return_value=None),
+        ):
             batch_rename_pdfs(tmp_path)
         assert pdf.exists()
 
     def test_skips_pdf_when_suggested_name_is_same(self, tmp_path):
         pdf = tmp_path / "scan.pdf"
         pdf.touch()
-        with patch("file_rename.extract_text_from_pdf", return_value="text"), \
-             patch("file_rename.get_new_filename", return_value="scan.pdf"):
+        with (
+            patch("file_rename.extract_text_from_pdf", return_value="text"),
+            patch("file_rename.get_new_filename", return_value="scan.pdf"),
+        ):
             batch_rename_pdfs(tmp_path)
         assert pdf.exists()
 
@@ -401,8 +442,10 @@ class TestBatchRenamePdfs:
         pdf = tmp_path / "scan.pdf"
         pdf.touch()
         new_name = "2024-01-15 - Chase Bank - Statement.pdf"
-        with patch("file_rename.extract_text_from_pdf", return_value="text"), \
-             patch("file_rename.get_new_filename", return_value=new_name):
+        with (
+            patch("file_rename.extract_text_from_pdf", return_value="text"),
+            patch("file_rename.get_new_filename", return_value=new_name),
+        ):
             batch_rename_pdfs(tmp_path)
         assert (tmp_path / new_name).exists()
         assert not pdf.exists()
@@ -411,8 +454,10 @@ class TestBatchRenamePdfs:
         pdf = tmp_path / "scan.pdf"
         pdf.touch()
         new_name = "2024-01-15 - Chase Bank - Statement.pdf"
-        with patch("file_rename.extract_text_from_pdf", return_value="text"), \
-             patch("file_rename.get_new_filename", return_value=new_name):
+        with (
+            patch("file_rename.extract_text_from_pdf", return_value="text"),
+            patch("file_rename.get_new_filename", return_value=new_name),
+        ):
             batch_rename_pdfs(tmp_path, dry_run=True)
         assert pdf.exists()
         assert not (tmp_path / new_name).exists()
@@ -424,17 +469,21 @@ class TestBatchRenamePdfs:
         (tmp_path / new_name).touch()
         # glob returns sorted: the collision file comes first (alpha), skip it;
         # then scan.pdf is renamed to the _1 variant
-        with patch("file_rename.extract_text_from_pdf", side_effect=["", "text"]), \
-             patch("file_rename.get_new_filename", return_value=new_name):
+        with (
+            patch("file_rename.extract_text_from_pdf", side_effect=["", "text"]),
+            patch("file_rename.get_new_filename", return_value=new_name),
+        ):
             batch_rename_pdfs(tmp_path)
         assert (tmp_path / "2024-01-15 - Chase Bank - Statement_1.pdf").exists()
 
     def test_handles_oserror_on_rename(self, tmp_path):
         pdf = tmp_path / "scan.pdf"
         pdf.touch()
-        with patch("file_rename.extract_text_from_pdf", return_value="text"), \
-             patch("file_rename.get_new_filename", return_value="new-name.pdf"), \
-             patch.object(Path, "rename", side_effect=OSError("permission denied")):
+        with (
+            patch("file_rename.extract_text_from_pdf", return_value="text"),
+            patch("file_rename.get_new_filename", return_value="new-name.pdf"),
+            patch.object(Path, "rename", side_effect=OSError("permission denied")),
+        ):
             batch_rename_pdfs(tmp_path)  # must not raise
 
 

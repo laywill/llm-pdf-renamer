@@ -1,12 +1,13 @@
 """Tests for sanitise_filename in file_rename.py."""
 
 import pytest
-from file_rename import sanitise_filename, MAX_FILENAME_LEN
 
+from file_rename import MAX_FILENAME_LEN, sanitise_filename
 
 # ---------------------------------------------------------------------------
 # Dotless input — regression for the rpartition bug (Issue 4)
 # ---------------------------------------------------------------------------
+
 
 def test_dotless_name_gets_pdf_extension():
     """Dotless input must produce 'name.pdf', not '.name.pdf'."""
@@ -25,13 +26,14 @@ def test_dotless_name_stem_not_empty():
 # Normal cases — must still work after the fix
 # ---------------------------------------------------------------------------
 
+
 def test_pdf_extension_preserved():
     name = "2024-01-15 - Chase Bank - Statement.pdf"
     assert sanitise_filename(name) == name
 
 
 def test_illegal_chars_replaced():
-    result = sanitise_filename('file<name>:doc.pdf')
+    result = sanitise_filename("file<name>:doc.pdf")
     assert result.endswith(".pdf")
     for ch in '<>:"/\\|?*':
         assert ch not in result

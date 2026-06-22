@@ -19,8 +19,8 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import pymupdf
 import ollama
+import pymupdf
 from PIL import Image
 
 # ---------------------------------------------------------------------------
@@ -28,10 +28,10 @@ from PIL import Image
 # ---------------------------------------------------------------------------
 FOLDER_PATH = r"C:\path\to\your\backed_up_pdfs"
 MODEL_NAME = "gemma3:4b"
-MAX_TEXT_CHARS = 2000   # chars sent to the LLM per document
+MAX_TEXT_CHARS = 2000  # chars sent to the LLM per document
 MAX_FILENAME_LEN = 200  # characters, well under the 255-byte FS limit
-OCR_MAX_PAGES = 2       # pages to OCR when no embedded text is found
-OCR_DPI = 200           # render resolution for OCR; 200 DPI balances speed and accuracy
+OCR_MAX_PAGES = 2  # pages to OCR when no embedded text is found
+OCR_DPI = 200  # render resolution for OCR; 200 DPI balances speed and accuracy
 
 # Windows-illegal filename characters
 _ILLEGAL_CHARS_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
@@ -85,7 +85,9 @@ def _quiet_libs():
 
 
 def _maybe_quiet() -> contextlib.AbstractContextManager:
-    return contextlib.nullcontext() if log.isEnabledFor(logging.DEBUG) else _quiet_libs()
+    return (
+        contextlib.nullcontext() if log.isEnabledFor(logging.DEBUG) else _quiet_libs()
+    )
 
 
 log = logging.getLogger(__name__)
@@ -94,6 +96,7 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def sanitise_filename(name: str) -> str:
     """Strip illegal chars, path separators, and enforce length limits."""
@@ -136,6 +139,7 @@ def unique_path(path: Path) -> Path:
 # Core functions
 # ---------------------------------------------------------------------------
 
+
 def extract_text_from_pdf(pdf_path: Path) -> str:
     """Return text from the first two pages of a PDF, or an empty string on failure."""
     text_parts: list[str] = []
@@ -143,7 +147,11 @@ def extract_text_from_pdf(pdf_path: Path) -> str:
         with pymupdf.open(pdf_path) as doc:
             for page in doc[:2]:
                 text_parts.append(str(page.get_text("text")))
-        log.debug("Extracted %d chars from '%s'", sum(len(t) for t in text_parts), pdf_path.name)
+        log.debug(
+            "Extracted %d chars from '%s'",
+            sum(len(t) for t in text_parts),
+            pdf_path.name,
+        )
     except Exception:
         log.exception("Failed to read PDF: %s", pdf_path)
     return "".join(text_parts).strip()
@@ -160,8 +168,10 @@ def _get_paddle_ocr() -> Any:
     """
     global _paddle_ocr
     if _paddle_ocr is None:
-        from paddleocr import PaddleOCR  # type: ignore[import-untyped]  # noqa: PLC0415
         import logging as _logging  # noqa: PLC0415
+
+        from paddleocr import PaddleOCR  # type: ignore[import-untyped]  # noqa: PLC0415
+
         # paddlex/__init__.py calls setup_logging() on import, resetting its logger to INFO.
         # Set to ERROR *after* the import so our level isn't overridden.
         # Skip silencing in debug mode so the full paddlex output remains visible.
@@ -192,16 +202,24 @@ def ocr_pdf_pages(pdf_path: Path, max_pages: int = OCR_MAX_PAGES) -> str:
             for page in doc[:max_pages]:
                 pix = page.get_pixmap(dpi=OCR_DPI)
                 img = Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGB")
-                img_array = np.array(img)[:, :, ::-1]  # RGB → BGR (PaddleOCR convention)
+                img_array = np.array(img)[
+                    :, :, ::-1
+                ]  # RGB → BGR (PaddleOCR convention)
                 for ocr_result in engine.predict(img_array):
                     text_parts.extend(ocr_result.get("rec_texts") or [])
-        log.debug("OCR extracted %d chars from '%s'", sum(len(t) for t in text_parts), pdf_path.name)
+        log.debug(
+            "OCR extracted %d chars from '%s'",
+            sum(len(t) for t in text_parts),
+            pdf_path.name,
+        )
     except Exception:
         log.exception("OCR failed for '%s'", pdf_path.name)
     return " ".join(text_parts).strip()
 
 
-def get_new_filename(pdf_text: str, current_name: str, model: str = MODEL_NAME) -> str | None:
+def get_new_filename(
+    pdf_text: str, current_name: str, model: str = MODEL_NAME
+) -> str | None:
     """Ask the local LLM to suggest a structured filename."""
     if not pdf_text:
         log.debug("No text to send to LLM for '%s'", current_name)
@@ -225,7 +243,9 @@ def get_new_filename(pdf_text: str, current_name: str, model: str = MODEL_NAME) 
     )
 
     try:
-        log.debug("Sending %d chars to model '%s' for '%s'", len(prompt), model, current_name)
+        log.debug(
+            "Sending %d chars to model '%s' for '%s'", len(prompt), model, current_name
+        )
         response = ollama.generate(model=model, prompt=prompt)
         raw_response = response.response
         if raw_response is None:
@@ -254,6 +274,7 @@ def get_new_filename(pdf_text: str, current_name: str, model: str = MODEL_NAME) 
 # ---------------------------------------------------------------------------
 # Main batch loop
 # ---------------------------------------------------------------------------
+
 
 def batch_rename_pdfs(
     folder: Path,
@@ -287,7 +308,9 @@ def batch_rename_pdfs(
             log.info("  -> No embedded text found; attempting OCR…")
             pdf_text = ocr_pdf_pages(pdf_path, max_pages=ocr_pages)
         if not pdf_text:
-            log.warning("  -> Skipped (no readable text found and OCR produced nothing)")
+            log.warning(
+                "  -> Skipped (no readable text found and OCR produced nothing)"
+            )
             stats["skipped"] += 1
             continue
 
@@ -304,7 +327,9 @@ def batch_rename_pdfs(
 
         target = unique_path(folder / new_name)
         if target.name != new_name:
-            log.info("  -> Collision: renamed target to '%s' to avoid overwrite", target.name)
+            log.info(
+                "  -> Collision: renamed target to '%s' to avoid overwrite", target.name
+            )
 
         if dry_run:
             log.info("  -> Would rename to: %s", target.name)
@@ -320,13 +345,16 @@ def batch_rename_pdfs(
 
     log.info(
         "\nDone. Renamed: %d  |  Skipped: %d  |  Failed: %d",
-        stats["renamed"], stats["skipped"], stats["failed"],
+        stats["renamed"],
+        stats["skipped"],
+        stats["failed"],
     )
 
 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
