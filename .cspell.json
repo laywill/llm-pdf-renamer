@@ -18,14 +18,24 @@
     "language": "en-GB",
     "version": "0.2",
     "words": [
+        "cuda",
         "devcontainers",
+        "gemma",
+        "HMRC",
         "isort",
         "Linters",
+        "ollama",
+        "paddleocr",
+        "paddlex",
+        "ppocr",
         "pylance",
         "pypa",
         "pyupgrade",
+        "qwen",
         "Retriable",
-        "Retryable"
+        "Retryable",
+        "tobytes",
+        "WRONLY"
     ],
     "ignoreWords": [
         "stefanzweifel"
