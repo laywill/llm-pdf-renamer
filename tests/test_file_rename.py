@@ -3,12 +3,9 @@ extract_text_from_pdf, ocr_pdf_pages, get_new_filename, batch_rename_pdfs,
 parse_args."""
 
 import io
-import logging
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import numpy as np
 import pytest
 from PIL import Image
 

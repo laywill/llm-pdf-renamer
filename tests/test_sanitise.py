@@ -1,7 +1,5 @@
 """Tests for sanitise_filename in file_rename.py."""
 
-import pytest
-
 from file_rename import MAX_FILENAME_LEN, sanitise_filename
 
 # ---------------------------------------------------------------------------
