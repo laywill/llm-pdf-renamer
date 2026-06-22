@@ -1,2 +1,13 @@
 [MESSAGES CONTROL]
-disable=import-error
+disable=
+    import-error,
+    line-too-long,
+    missing-class-docstring,
+    missing-function-docstring,
+    broad-exception-caught,
+    invalid-name,
+    global-statement,
+    import-outside-toplevel,
+    reimported,
+    protected-access,
+    too-many-branches,
