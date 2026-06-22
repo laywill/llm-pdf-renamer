@@ -329,7 +329,7 @@ class TestGetNewFilename:
         long_text = "x" * 5000
         captured_prompt: list[str] = []
 
-        def capture(model, prompt):
+        def capture(_model, prompt):
             captured_prompt.append(prompt)
             return _llm_response("2024-01-15 - Test.pdf")
 
