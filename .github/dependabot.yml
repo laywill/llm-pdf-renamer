@@ -26,28 +26,27 @@ updates:
       - "dependencies"
       - "chore"
     groups:
-      # Production dependencies - most critical
-      production-dependencies:
+      # Core dependencies - most critical
+      core-dependencies:
         patterns:
-          - "requests*"
+          - "ollama*"
+          - "pymupdf*"
+          - "pillow*"
+          - "numpy*"
+          - "paddleocr*"
+          - "onnxruntime*"
       # Testing framework and tools
       testing-dependencies:
         patterns:
           - "pytest*"
-          - "responses"
-      # Build and packaging tools
-      build-tools:
-        patterns:
-          - "hatch*"
-          - "hatchling"
-      # Catch-all for anything else
-      other-dependencies:
-        patterns:
-          - "*"
       # Development tooling (code quality, linting, etc.)
       dev-tools:
         patterns:
           - "pre-commit*"
+      # Catch-all for anything else
+      other-dependencies:
+        patterns:
+          - "*"
 
   # Maintain dependencies for Devcontainer dependencies
   - package-ecosystem: "devcontainers"
