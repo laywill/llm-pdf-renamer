@@ -4,12 +4,12 @@ Batch-rename PDF files using a local [Ollama](https://ollama.com) LLM. Extracts 
 
 ## Hardware requirements
 
-| Component | RAM |
-|-----------|-----|
-| LLM model weights (`gemma3:4b`) | ~4 GB |
-| LLM context window | ~2 GB |
-| PaddleOCR models + processing | ~1 GB |
-| **Total recommended** | **≥ 8 GB** |
+| Component                       | RAM        |
+| ------------------------------- | ---------- |
+| LLM model weights (`gemma3:4b`) | ~4 GB      |
+| LLM context window              | ~2 GB      |
+| PaddleOCR models + processing   | ~1 GB      |
+| **Total recommended**           | **≥ 8 GB** |
 
 For GPU acceleration, a CUDA-capable GPU with ≥ 6 GB VRAM will significantly speed up both OCR and LLM inference, but everything runs on CPU by default.
 
@@ -75,14 +75,14 @@ python file_rename.py --folder C:\path\to\pdfs --log-file rename.log
 python file_rename.py --folder C:\path\to\pdfs --ocr-pages 3
 ```
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--folder` | `FOLDER_PATH` constant | Path to the folder containing PDFs |
-| `--model` | `gemma3:4b` | Ollama model name |
-| `--dry-run` | off | Preview renames without making any changes |
-| `--debug` | off | Verbose debug logging |
-| `--log-file PATH` | none | Also write log output to a file |
-| `--ocr-pages N` | `2` | Pages to OCR when no embedded text is found |
+| Flag              | Default                | Description                                 |
+| ----------------- | ---------------------- | ------------------------------------------- |
+| `--folder`        | `FOLDER_PATH` constant | Path to the folder containing PDFs          |
+| `--model`         | `gemma3:4b`            | Ollama model name                           |
+| `--dry-run`       | off                    | Preview renames without making any changes  |
+| `--debug`         | off                    | Verbose debug logging                       |
+| `--log-file PATH` | none                   | Also write log output to a file             |
+| `--ocr-pages N`   | `2`                    | Pages to OCR when no embedded text is found |
 
 ## How it works
 

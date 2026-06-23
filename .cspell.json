@@ -29,6 +29,7 @@
         "paddlex",
         "ppocr",
         "pylance",
+        "pylintrc",
         "pypa",
         "pyupgrade",
         "qwen",
