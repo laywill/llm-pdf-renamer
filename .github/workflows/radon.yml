@@ -1,0 +1,45 @@
+---
+name: Radon Code Complexity
+
+on: # yamllint disable-line rule:truthy - false positive
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  radon:
+    name: Code Complexity Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.13"
+
+      - name: Install Radon
+        run: pip install radon
+
+      - name: Check Cyclomatic Complexity
+        run: |
+          radon cc . -n C --show-closures
+          echo "✓ Cyclomatic complexity check passed"
+
+      - name: Check Maintainability Index
+        run: |
+          radon mi . --show
+          echo "✓ Maintainability index check passed"

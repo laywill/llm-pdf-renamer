@@ -1,0 +1,61 @@
+---
+# Set update schedule for GitHub Actions
+
+version: 2
+updates:
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      # Check for updates to GitHub Actions every week
+      interval: "weekly"
+    labels:
+      - "github_actions"
+      - "chore"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # Maintain dependencies for Python files in requirements.txt
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "chore"
+    groups:
+      # Core dependencies - most critical
+      core-dependencies:
+        patterns:
+          - "ollama*"
+          - "pymupdf*"
+          - "pillow*"
+          - "numpy*"
+          - "paddleocr*"
+          - "onnxruntime*"
+      # Testing framework and tools
+      testing-dependencies:
+        patterns:
+          - "pytest*"
+      # Development tooling (code quality, linting, etc.)
+      dev-tools:
+        patterns:
+          - "pre-commit*"
+      # Catch-all for anything else
+      other-dependencies:
+        patterns:
+          - "*"
+
+  # Maintain dependencies for Devcontainer dependencies
+  - package-ecosystem: "devcontainers"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "chore"
+    groups:
+      devcontainer:
+        patterns:
+          - "*"

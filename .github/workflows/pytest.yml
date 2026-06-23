@@ -1,0 +1,57 @@
+---
+name: PyTest
+
+# Trigger mega-linter at every push. Action will also be visible from Pull
+# Requests to main
+on: # yamllint disable-line rule:truthy - false positive
+  # Comment this line to trigger action only on pull-requests
+  # (not recommended if you don't pay for GH Actions)
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install hatch
+          python -m pip install -e ".[dev,test]"
+
+      - name: Run tests
+        env:
+          RUN_INTEGRATION_TESTS: 1
+
+        run: |
+          pytest tests/
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7
+        with:
+          fail_ci_if_error: false

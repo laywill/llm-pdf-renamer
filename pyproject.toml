@@ -2,7 +2,7 @@
 name = "llm-pdf-renamer"
 description = "A tool to rename PDFs based on their content using a local LLM."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license-files = ["LICENSE"]
 dynamic = ["version"]
 authors = [
@@ -20,11 +20,11 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "ollama>=0.3.0",

@@ -1,0 +1,16 @@
+[MESSAGES CONTROL]
+# Disabled rules that conflict with project conventions or are non-critical.
+# See rationale comments inline below.
+disable=
+    import-error,                   # Third-party packages not in MegaLinter Docker env
+    line-too-long,                  # .flake8 ignores E501; stay consistent
+    missing-class-docstring,        # Test classes are self-documenting by name
+    missing-function-docstring,     # Test/helper functions are self-documenting by name
+    broad-exception-caught,         # Intentional broad catches in OCR/LLM fallback paths
+    invalid-name,                   # _paddle_ocr is intentionally private/lowercase singleton
+    global-statement,               # Used intentionally for OCR singleton lazy-init pattern
+    import-outside-toplevel,        # Lazy-load of heavy deps; test module import for sys.modules patching
+    reimported,                     # logging reimported inside lazy paddleocr init block
+    protected-access,               # Tests need white-box access to _paddle_ocr and _get_paddle_ocr
+    too-many-branches,              # get_new_filename at 13/12; borderline, not worth restructuring
+    unused-argument,               # Mock/stub callbacks in tests intentionally ignore some args
