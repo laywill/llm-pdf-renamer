@@ -13,3 +13,4 @@ disable=
     reimported,                     # logging reimported inside lazy paddleocr init block
     protected-access,               # Tests need white-box access to _paddle_ocr and _get_paddle_ocr
     too-many-branches,              # get_new_filename at 13/12; borderline, not worth restructuring
+    unused-argument,               # Mock/stub callbacks in tests intentionally ignore some args
