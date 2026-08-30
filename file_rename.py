@@ -292,8 +292,6 @@ def batch_rename_pdfs(
     dry_run: bool = False,
     model: str = MODEL_NAME,
     ocr_pages: int = OCR_MAX_PAGES,
-    num_ctx: int = LLM_NUM_CTX,
-    keep_alive: str = LLM_KEEP_ALIVE,
 ) -> None:
     if not folder.exists():
         log.error("Folder does not exist: %s", folder)
@@ -327,13 +325,7 @@ def batch_rename_pdfs(
             stats["skipped"] += 1
             continue
 
-        new_name = get_new_filename(
-            pdf_text,
-            pdf_path.name,
-            model=model,
-            num_ctx=num_ctx,
-            keep_alive=keep_alive,
-        )
+        new_name = get_new_filename(pdf_text, pdf_path.name, model=model)
         if not new_name:
             log.warning("  -> Skipped (LLM could not determine a better name)")
             stats["skipped"] += 1
@@ -411,19 +403,6 @@ def parse_args() -> argparse.Namespace:
         metavar="N",
         help="Number of pages to OCR when no embedded text is found (default: %(default)s)",
     )
-    parser.add_argument(
-        "--num-ctx",
-        type=int,
-        default=LLM_NUM_CTX,
-        metavar="N",
-        help="Context window size (tokens) for the LLM call (default: %(default)s)",
-    )
-    parser.add_argument(
-        "--keep-alive",
-        default=LLM_KEEP_ALIVE,
-        metavar="DURATION",
-        help="How long Ollama keeps the model loaded after the call (default: %(default)s)",
-    )
     return parser.parse_args()
 
 
@@ -436,6 +415,4 @@ if __name__ == "__main__":
         dry_run=args.dry_run,
         model=args.model,
         ocr_pages=args.ocr_pages,
-        num_ctx=args.num_ctx,
-        keep_alive=args.keep_alive,
     )
