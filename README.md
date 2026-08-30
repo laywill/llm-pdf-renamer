@@ -28,7 +28,9 @@ For GPU acceleration, a CUDA-capable GPU with ≥ 6 GB VRAM will significantly s
 
 ### Ollama context window
 
-Ollama defaults to a small context window that may truncate long documents. Set a sensible minimum before starting the server:
+The tool sets its own context window (`num_ctx`, default `2048` tokens) on every request, sized for the ~2000-character prompt it sends, so setting a global `OLLAMA_CONTEXT_LENGTH` is **optional**. This keeps memory use predictable regardless of the host's default configuration — useful on smaller-VRAM GPUs, where a large global context can push the model off the GPU and onto the CPU.
+
+If you'd still like to raise Ollama's global default (e.g. for other tools sharing the same server), you can:
 
 ```shell
 # Linux / macOS (systemd or launchd unit — set in the environment block)
@@ -39,7 +41,7 @@ $env:OLLAMA_CONTEXT_LENGTH = "4096"
 ollama serve
 ```
 
-A value of `4096` tokens covers most invoices and statements. Increase to `8192` if you process long multi-page documents.
+Use `--num-ctx` to raise this tool's own per-request context window if you increase `MAX_TEXT_CHARS` or otherwise send longer prompts.
 
 ## Installation
 
@@ -73,16 +75,19 @@ python file_rename.py --folder C:\path\to\pdfs --dry-run
 python file_rename.py --folder C:\path\to\pdfs --model gemma3:4b --debug
 python file_rename.py --folder C:\path\to\pdfs --log-file rename.log
 python file_rename.py --folder C:\path\to\pdfs --ocr-pages 3
+python file_rename.py --folder C:\path\to\pdfs --num-ctx 4096 --keep-alive 30m
 ```
 
-| Flag              | Default                | Description                                 |
-| ----------------- | ---------------------- | ------------------------------------------- |
-| `--folder`        | `FOLDER_PATH` constant | Path to the folder containing PDFs          |
-| `--model`         | `gemma3:4b`            | Ollama model name                           |
-| `--dry-run`       | off                    | Preview renames without making any changes  |
-| `--debug`         | off                    | Verbose debug logging                       |
-| `--log-file PATH` | none                   | Also write log output to a file             |
-| `--ocr-pages N`   | `2`                    | Pages to OCR when no embedded text is found |
+| Flag                | Default                | Description                                            |
+| ------------------- | ---------------------- | ------------------------------------------------------ |
+| `--folder`          | `FOLDER_PATH` constant | Path to the folder containing PDFs                     |
+| `--model`           | `gemma3:4b`            | Ollama model name                                      |
+| `--dry-run`         | off                    | Preview renames without making any changes             |
+| `--debug`           | off                    | Verbose debug logging                                  |
+| `--log-file PATH`   | none                   | Also write log output to a file                        |
+| `--ocr-pages N`     | `2`                    | Pages to OCR when no embedded text is found            |
+| `--num-ctx N`       | `2048`                 | Context window size (tokens) for the LLM call          |
+| `--keep-alive DUR`  | `8h`                   | How long Ollama keeps the model loaded after the call  |
 
 ## How it works
 
