@@ -32,6 +32,8 @@ MAX_TEXT_CHARS = 2000  # chars sent to the LLM per document
 MAX_FILENAME_LEN = 200  # characters, well under the 255-byte FS limit
 OCR_MAX_PAGES = 2  # pages to OCR when no embedded text is found
 OCR_DPI = 200  # render resolution for OCR; 200 DPI balances speed and accuracy
+LLM_NUM_CTX = 2048  # generous headroom for the ~2000-char capped prompt
+LLM_KEEP_ALIVE = "8h"  # keep the model resident in memory across a batch run
 
 # Windows-illegal filename characters
 _ILLEGAL_CHARS_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
@@ -218,7 +220,11 @@ def ocr_pdf_pages(pdf_path: Path, max_pages: int = OCR_MAX_PAGES) -> str:
 
 
 def get_new_filename(
-    pdf_text: str, current_name: str, model: str = MODEL_NAME
+    pdf_text: str,
+    current_name: str,
+    model: str = MODEL_NAME,
+    num_ctx: int = LLM_NUM_CTX,
+    keep_alive: str = LLM_KEEP_ALIVE,
 ) -> str | None:
     """Ask the local LLM to suggest a structured filename."""
     if not pdf_text:
@@ -246,7 +252,12 @@ def get_new_filename(
         log.debug(
             "Sending %d chars to model '%s' for '%s'", len(prompt), model, current_name
         )
-        response = ollama.generate(model=model, prompt=prompt)
+        response = ollama.generate(
+            model=model,
+            prompt=prompt,
+            options={"num_ctx": num_ctx},
+            keep_alive=keep_alive,
+        )
         raw_response = response.response
         if raw_response is None:
             log.warning("LLM returned no response for '%s'", current_name)

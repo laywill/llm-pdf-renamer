@@ -28,7 +28,14 @@ For GPU acceleration, a CUDA-capable GPU with ≥ 6 GB VRAM will significantly s
 
 ### Ollama context window
 
-Ollama defaults to a small context window that may truncate long documents. Set a sensible minimum before starting the server:
+The tool sets its own context window (`num_ctx`, default `2048` tokens) on every request, sized
+for the ~2000-character prompt it sends, so setting a global `OLLAMA_CONTEXT_LENGTH` is
+**optional**. This keeps memory use predictable regardless of the host's default configuration —
+useful on smaller-VRAM GPUs, where a large global context can push the model off the GPU and onto
+the CPU.
+
+If you'd still like to raise Ollama's global default (e.g. for other tools sharing the same
+server), you can:
 
 ```shell
 # Linux / macOS (systemd or launchd unit — set in the environment block)
@@ -38,8 +45,6 @@ OLLAMA_CONTEXT_LENGTH=4096 ollama serve
 $env:OLLAMA_CONTEXT_LENGTH = "4096"
 ollama serve
 ```
-
-A value of `4096` tokens covers most invoices and statements. Increase to `8192` if you process long multi-page documents.
 
 ## Installation
 
@@ -92,7 +97,8 @@ python file_rename.py --folder C:\path\to\pdfs --ocr-pages 3
 
 ### Alternative: Ollama vision model (last resort)
 
-For documents where PaddleOCR also struggles (e.g. handwritten notes, very poor scans), a vision-capable Ollama model such as `qwen2.5vl:7b` can read page images directly. This approach is significantly slower (several minutes per page) and requires an additional ~6 GB of RAM and disk space, but produces excellent results on complex or degraded documents. It is not automated by this tool but can be used manually.
+For documents where PaddleOCR also struggles (e.g. handwritten notes, very poor scans), a vision-capable Ollama model such as `qwen2.5vl:7b` can read page images directly.
+This approach is significantly slower (several minutes per page) and requires an additional ~6 GB of RAM and disk space, but produces excellent results on complex or degraded documents. It is not automated by this tool but can be used manually.
 
 ## Running tests
 
