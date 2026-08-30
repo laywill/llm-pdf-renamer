@@ -81,7 +81,7 @@ python file_rename.py --folder C:\path\to\pdfs --ocr-pages 3
 ```
 
 | Flag              | Default                | Description                                 |
-| ----------------- | ---------------------- | -------------------------------------------- |
+| ----------------- | ---------------------- | ------------------------------------------- |
 | `--folder`        | `FOLDER_PATH` constant | Path to the folder containing PDFs          |
 | `--model`         | `gemma3:4b`            | Ollama model name                           |
 | `--dry-run`       | off                    | Preview renames without making any changes  |
@@ -97,7 +97,8 @@ python file_rename.py --folder C:\path\to\pdfs --ocr-pages 3
 
 ### Alternative: Ollama vision model (last resort)
 
-For documents where PaddleOCR also struggles (e.g. handwritten notes, very poor scans), a vision-capable Ollama model such as `qwen2.5vl:7b` can read page images directly. This approach is significantly slower (several minutes per page) and requires an additional ~6 GB of RAM and disk space, but produces excellent results on complex or degraded documents. It is not automated by this tool but can be used manually.
+For documents where PaddleOCR also struggles (e.g. handwritten notes, very poor scans), a vision-capable Ollama model such as `qwen2.5vl:7b` can read page images directly.
+This approach is significantly slower (several minutes per page) and requires an additional ~6 GB of RAM and disk space, but produces excellent results on complex or degraded documents. It is not automated by this tool but can be used manually.
 
 ## Running tests
 
