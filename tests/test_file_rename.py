@@ -329,7 +329,7 @@ class TestGetNewFilename:
         long_text = "x" * 5000
         captured_prompt: list[str] = []
 
-        def capture(model, prompt):
+        def capture(model, prompt, **kwargs):
             captured_prompt.append(prompt)
             return _llm_response("2024-01-15 - Test.pdf")
 
@@ -340,6 +340,30 @@ class TestGetNewFilename:
 
         assert "x" * MAX_TEXT_CHARS in captured_prompt[0]
         assert "x" * (MAX_TEXT_CHARS + 1) not in captured_prompt[0]
+
+    def test_passes_default_num_ctx_and_keep_alive(self):
+        from file_rename import LLM_KEEP_ALIVE, LLM_NUM_CTX
+
+        with patch(
+            "ollama.generate",
+            return_value=_llm_response("2024-01-15 - Test.pdf"),
+        ) as mock_generate:
+            get_new_filename("some text", "doc.pdf")
+
+        _, kwargs = mock_generate.call_args
+        assert kwargs["options"] == {"num_ctx": LLM_NUM_CTX}
+        assert kwargs["keep_alive"] == LLM_KEEP_ALIVE
+
+    def test_passes_custom_num_ctx_and_keep_alive(self):
+        with patch(
+            "ollama.generate",
+            return_value=_llm_response("2024-01-15 - Test.pdf"),
+        ) as mock_generate:
+            get_new_filename("some text", "doc.pdf", num_ctx=4096, keep_alive="30m")
+
+        _, kwargs = mock_generate.call_args
+        assert kwargs["options"] == {"num_ctx": 4096}
+        assert kwargs["keep_alive"] == "30m"
 
 
 # ---------------------------------------------------------------------------
