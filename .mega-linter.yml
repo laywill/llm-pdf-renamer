@@ -48,3 +48,10 @@ FILTER_REGEX_EXCLUDE: (\.git|\.github|\.venv|\.pytest_cache|\.vscode|__pycache__
 
 # Checkov Configuration
 REPOSITORY_CHECKOV_ARGUMENTS: "--skip-check CKV2_GHA_1"
+
+# TruffleHog Configuration
+# Exclude the Lob detector: its "verified" check accepts any test_/live_ prefixed
+# string of the right length/charset as a valid test-mode key, which produces
+# false positives on pytest function names (e.g. test_returns_none_for_empty_llm_response).
+# This repo has no relation to Lob, so the detector is disabled entirely.
+REPOSITORY_TRUFFLEHOG_ARGUMENTS: "--exclude-detectors=Lob"
