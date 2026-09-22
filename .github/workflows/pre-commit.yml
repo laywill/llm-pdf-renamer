@@ -1,7 +1,7 @@
 ---
 name: Pre-commit
 
-on: # yamllint disable-line rule:truthy - false positive
+on: # yamllint disable-line rule:truthy
   push:
     branches:
       - main

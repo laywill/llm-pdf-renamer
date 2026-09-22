@@ -27,6 +27,7 @@
         "ollama",
         "paddleocr",
         "paddlex",
+        "pbxproj",
         "ppocr",
         "pylance",
         "pylintrc",
@@ -36,6 +37,7 @@
         "Retriable",
         "Retryable",
         "tobytes",
+        "webp",
         "WRONLY"
     ],
     "ignoreWords": [

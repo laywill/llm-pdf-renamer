@@ -3,7 +3,7 @@ name: MegaLinter
 
 # Trigger mega-linter at every push. Action will also be visible from Pull
 # Requests to main
-on: # yamllint disable-line rule:truthy - false positive
+on: # yamllint disable-line rule:truthy
   # Comment this line to trigger action only on pull-requests
   # (not recommended if you don't pay for GH Actions)
   push:
@@ -63,7 +63,7 @@ jobs:
       # MegaLinter
       - name: MegaLinter
 
-        # You can override MegaLinter flavor used to have faster performances
+        # You can override MegaLinter flavour used to have faster performances
         # More info at https://megalinter.io/latest/flavors/
         uses: oxsecurity/megalinter/flavors/python@v10.1.0
 

@@ -1,7 +1,7 @@
 ---
 name: Radon Code Complexity
 
-on: # yamllint disable-line rule:truthy - false positive
+on: # yamllint disable-line rule:truthy
   push:
     branches:
       - main
