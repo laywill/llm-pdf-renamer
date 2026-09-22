@@ -90,7 +90,7 @@ text-free documents) are manual fixtures for end-to-end checks, not used by pyte
   a trailing comment — never a tag or branch alone:
 
   ```yaml
-  uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v5.0.0
+  uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
   ```
 
   The SHA is what actually gets run; the comment is the only human-readable record of which release
