@@ -46,6 +46,14 @@ SPELL_CSPELL_FILTER_REGEX_EXCLUDE: (\.cspell\.json|\.gitignore)
 # Filter Configuration
 FILTER_REGEX_EXCLUDE: (^|/)(\.git|\.venv|\.pytest_cache|\.vscode|__pycache__)/
 
+# Zizmor Configuration
+# Run offline: zizmor's online audits resolve action refs against the GitHub
+# API, and inside the MegaLinter container that request picks up the git
+# credential actions/checkout persisted for THIS repository, which GitHub
+# rejects with a 401 for any other repository. Without --offline the whole
+# audit aborts with "no audit was performed".
+ACTION_ZIZMOR_ARGUMENTS: "--offline"
+
 # Checkov Configuration
 REPOSITORY_CHECKOV_ARGUMENTS: "--skip-check CKV2_GHA_1"
 

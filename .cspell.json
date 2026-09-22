@@ -18,6 +18,7 @@
     "language": "en-GB",
     "version": "0.2",
     "words": [
+        "artipacked",
         "cuda",
         "devcontainers",
         "gemma",
@@ -38,7 +39,8 @@
         "Retryable",
         "tobytes",
         "webp",
-        "WRONLY"
+        "WRONLY",
+        "zizmor"
     ],
     "ignoreWords": [
         "stefanzweifel"
