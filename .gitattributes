@@ -1,4 +1,4 @@
-# Set the default behavior, in case people don't have core.autocrlf set.
+# Set the default behaviour, in case people don't have core.autocrlf set.
 * text=auto
 
 # Force batch scripts to always use CRLF line endings so that if a repo is accessed
