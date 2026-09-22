@@ -86,6 +86,15 @@ text-free documents) are manual fixtures for end-to-end checks, not used by pyte
 - flake8 ignores E501 (black handles wrapping) — don't hand-wrap to satisfy a line-length rule.
 - CI runs pytest on 3.10–3.14, MegaLinter (python flavour), pre-commit, and radon complexity.
   MegaLinter auto-commits its fixes to PR branches.
+- Every `uses:` in a GitHub workflow pins to a full-length commit SHA, with the semantic version in
+  a trailing comment — never a tag or branch alone:
+
+  ```yaml
+  uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v5.0.0
+  ```
+
+  The SHA is what actually gets run; the comment is the only human-readable record of which release
+  it is, and Dependabot rewrites both together on an update.
 - cspell runs over the repo in en-GB — new project-specific terms go in `.cspell.json`.
 - Lint suppressions are centralised with rationale in [.pylintrc](.pylintrc); add new ones there with
   a comment rather than scattering inline `# pylint: disable` directives.
