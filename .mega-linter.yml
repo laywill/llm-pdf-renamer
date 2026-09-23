@@ -3,7 +3,7 @@
 # https://megalinter.github.io/
 
 # Core Configuration
-APPLY_FIXES: yes
+APPLY_FIXES: "all"
 DISABLE_ERRORS: false
 SHOW_ELAPSED_TIME: true
 PARALLEL: true
