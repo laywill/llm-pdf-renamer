@@ -1,0 +1,7 @@
+{
+    // VS Code does not read .editorconfig natively; this extension is what
+    // applies the rules in the repo root .editorconfig while editing.
+    "recommendations": [
+        "editorconfig.editorconfig"
+    ]
+}

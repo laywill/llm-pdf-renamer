@@ -1,0 +1,63 @@
+# This file exists to activate MegaLinter's EDITORCONFIG_EDITORCONFIG_CHECKER
+# linter, which is inactive without an .editorconfig present (see issue #42).
+# It documents formatting conventions the repo already follows, verified
+# against every tracked file's git-blob content (git show HEAD:<path>, i.e.
+# what CI actually checks out — not the autocrlf-converted Windows working
+# tree, which differs for anything not pinned by .gitattributes).
+#
+# end_of_line settings mirror .gitattributes exactly: LF for YAML/shell
+# scripts, CRLF for Windows batch/PowerShell scripts (none of the latter are
+# tracked yet, but the rule is declared so new ones stay consistent).
+#
+# max_line_length is intentionally omitted: flake8 ignores E501 and CLAUDE.md
+# says not to hand-wrap for line length.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+# Python - black (line-length 88), 4-space indent.
+[*.py]
+indent_size = 4
+
+# YAML - 2-space indent (GitHub workflows, .mega-linter.yml, pre-commit config).
+# LF is restated here rather than inherited from [*] so that every pattern
+# .gitattributes pins to LF is visible in this file too.
+[*.{yml,yaml}]
+indent_size = 2
+end_of_line = lf
+
+# JSON - 4-space indent (.cspell.json, .vscode/settings.json).
+[*.json]
+indent_size = 4
+
+# INI-style config files - 4-space continuation indent.
+[{.flake8,.pylintrc}]
+indent_size = 4
+
+# Markdown - indentation is context-dependent (2-space bullet continuations
+# vs. 3-space numbered-list continuations), so indent_size is intentionally
+# left unset here to avoid false failures. Trailing whitespace can be
+# meaningful (hard line breaks), so don't trim it.
+[*.md]
+trim_trailing_whitespace = false
+
+# TOML - pyproject.toml mixes 2-space (array continuations) and 4-space
+# indentation, so indent_size is intentionally left unset to avoid false
+# failures until that's cleaned up separately.
+[*.toml]
+
+# Windows batch/PowerShell scripts must keep CRLF, per .gitattributes.
+[*.{bat,BAT,cmd,CMD,ics,ICS,ps1,psm1,psd1}]
+end_of_line = crlf
+
+# Shell scripts must keep LF, per .gitattributes (redundant with [*] today;
+# stated explicitly so this file mirrors .gitattributes exactly -- see the
+# YAML section above, which restates LF for the same reason).
+[*.sh]
+end_of_line = lf
